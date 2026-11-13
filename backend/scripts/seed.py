@@ -1,6 +1,10 @@
 from datetime import time
+from pathlib import Path
+import sys
 
 from sqlalchemy import select
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.core.database import SessionLocal
 from app.core.security import hash_password
