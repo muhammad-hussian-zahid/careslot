@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models import DoctorProfile, Specialty, User
 from app.schemas import DoctorOut, SlotOut, SpecialtyOut
-from app.services.slots import available_slots
+from app.services.slots import CLINIC_TIMEZONE, available_slots
 
 router = APIRouter(tags=["doctors"])
 
@@ -48,7 +48,7 @@ def doctor_detail(doctor_id: int, db: Session = Depends(get_db)) -> DoctorOut:
 
 @router.get("/doctors/{doctor_id}/slots", response_model=list[SlotOut])
 def doctor_slots(doctor_id: int, day: date, db: Session = Depends(get_db)) -> list[SlotOut]:
-    if day < date.today():
+    if day < datetime.now(UTC).astimezone(CLINIC_TIMEZONE).date():
         raise HTTPException(422, "Date must not be in the past")
     profile = db.get(DoctorProfile, doctor_id)
     if profile is None:

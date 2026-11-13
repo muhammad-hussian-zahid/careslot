@@ -73,6 +73,16 @@ class Appointment(Base):
     status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
     reason: Mapped[str] = mapped_column(String(500), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    doctor_profile: Mapped[DoctorProfile] = relationship(foreign_keys=[doctor_id])
+    patient: Mapped[User] = relationship(foreign_keys=[patient_id])
+
+    @property
+    def doctor_name(self) -> str:
+        return self.doctor_profile.user.full_name
+
+    @property
+    def patient_name(self) -> str:
+        return self.patient.full_name
 
 
 class RefreshToken(Base):

@@ -1,9 +1,10 @@
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy.exc import IntegrityError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api import appointments, auth, doctors, management
@@ -18,7 +19,11 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 app.state.limiter = auth.limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_error(_: Request, exc: RateLimitExceeded) -> JSONResponse:
+    return JSONResponse(status_code=429, content={"error": {"code": "rate_limit_exceeded", "message": str(exc.detail)}})
 
 
 @app.exception_handler(StarletteHTTPException)
@@ -28,7 +33,13 @@ async def http_error(_: Request, exc: StarletteHTTPException) -> JSONResponse:
 
 @app.exception_handler(RequestValidationError)
 async def validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
-    return JSONResponse(status_code=422, content={"error": {"code": "validation_error", "message": "Request validation failed", "details": exc.errors()}})
+    content = jsonable_encoder({"error": {"code": "validation_error", "message": "Request validation failed", "details": exc.errors()}})
+    return JSONResponse(status_code=422, content=content)
+
+
+@app.exception_handler(IntegrityError)
+async def integrity_error(_: Request, exc: IntegrityError) -> JSONResponse:
+    return JSONResponse(status_code=409, content={"error": {"code": "conflict", "message": "The requested change conflicts with existing data"}})
 
 
 @app.get("/health")

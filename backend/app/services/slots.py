@@ -44,13 +44,14 @@ def available_slots(db: Session, doctor: DoctorProfile, day: date) -> list[tuple
     blocked = [(as_utc(item.starts_at), as_utc(item.ends_at)) for item in [*time_off, *booked]]
     duration = timedelta(minutes=doctor.consultation_minutes)
     slots: list[tuple[datetime, datetime]] = []
+    now = datetime.now(UTC)
     for rule in rules:
         cursor = datetime.combine(day, rule.start_time, tzinfo=CLINIC_TIMEZONE)
         finish = datetime.combine(day, rule.end_time, tzinfo=CLINIC_TIMEZONE)
         while cursor + duration <= finish:
             slot_start = cursor.astimezone(UTC)
             slot_end = (cursor + duration).astimezone(UTC)
-            if not any(slot_start < end and slot_end > start for start, end in blocked):
+            if slot_start > now and not any(slot_start < end and slot_end > start for start, end in blocked):
                 slots.append((slot_start, slot_end))
             cursor += duration
     return sorted(slots)

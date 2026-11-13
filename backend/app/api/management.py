@@ -9,9 +9,17 @@ from app.core.database import get_db
 from app.core.security import hash_password
 from app.dependencies import require_roles
 from app.models import Appointment, DoctorProfile, Specialty, TimeOff, User, WeeklyAvailabilityRule
-from app.schemas import AvailabilityRuleInput, DoctorCreate, SpecialtyCreate, SpecialtyOut, TimeOffInput
+from app.schemas import AvailabilityRuleInput, DoctorCreate, SpecialtyCreate, SpecialtyOut, TimeOffInput, TimeOffOut
 
 router = APIRouter(tags=["management"])
+
+
+@router.get("/doctor/availability", response_model=list[AvailabilityRuleInput])
+def get_availability(db: Session = Depends(get_db), user: User = Depends(require_roles("doctor"))) -> list[WeeklyAvailabilityRule]:
+    profile = user.doctor_profile
+    if profile is None:
+        raise HTTPException(409, "Doctor profile is missing")
+    return list(db.scalars(select(WeeklyAvailabilityRule).where(WeeklyAvailabilityRule.doctor_id == profile.id).order_by(WeeklyAvailabilityRule.weekday, WeeklyAvailabilityRule.start_time)).all())
 
 
 @router.post("/admin/doctors", status_code=status.HTTP_201_CREATED)
@@ -30,6 +38,15 @@ def create_doctor(payload: DoctorCreate, db: Session = Depends(get_db), _: User 
         db.rollback()
         raise HTTPException(409, "An account with this email already exists") from exc
     return {"id": profile.id, "user_id": user.id}
+
+
+@router.delete("/admin/doctors/{doctor_id}", status_code=204)
+def deactivate_doctor(doctor_id: int, db: Session = Depends(get_db), _: User = Depends(require_roles("admin"))) -> None:
+    profile = db.get(DoctorProfile, doctor_id)
+    if profile is None:
+        raise HTTPException(404, "Doctor not found")
+    profile.user.is_active = False
+    db.commit()
 
 
 @router.post("/admin/specialties", response_model=SpecialtyOut, status_code=201)
@@ -81,6 +98,24 @@ def add_time_off(payload: TimeOffInput, db: Session = Depends(get_db), user: Use
     db.commit()
     db.refresh(item)
     return {"id": item.id}
+
+
+@router.get("/doctor/time-off", response_model=list[TimeOffOut])
+def get_time_off(db: Session = Depends(get_db), user: User = Depends(require_roles("doctor"))) -> list[TimeOff]:
+    profile = user.doctor_profile
+    if profile is None:
+        raise HTTPException(409, "Doctor profile is missing")
+    return list(db.scalars(select(TimeOff).where(TimeOff.doctor_id == profile.id).order_by(TimeOff.starts_at)).all())
+
+
+@router.delete("/doctor/time-off/{time_off_id}", status_code=204)
+def delete_time_off(time_off_id: int, db: Session = Depends(get_db), user: User = Depends(require_roles("doctor"))) -> None:
+    profile = user.doctor_profile
+    item = db.get(TimeOff, time_off_id)
+    if item is None or profile is None or item.doctor_id != profile.id:
+        raise HTTPException(404, "Time-off block not found")
+    db.delete(item)
+    db.commit()
 
 
 @router.patch("/doctor/appointments/{appointment_id}")

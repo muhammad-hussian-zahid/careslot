@@ -7,10 +7,10 @@ def test_patient_register_login_and_refresh_rotation(client):
     login = client.post("/api/v1/auth/login", json={"email": "new@example.com", "password": "long-password-1"})
     assert login.status_code == 200
     pair = login.json()
-    rotated = client.post("/api/v1/auth/refresh", params={"refresh_token": pair["refresh_token"]})
+    rotated = client.post("/api/v1/auth/refresh", json={"refresh_token": pair["refresh_token"]})
     assert rotated.status_code == 200
     assert rotated.json()["refresh_token"] != pair["refresh_token"]
-    rejected = client.post("/api/v1/auth/refresh", params={"refresh_token": pair["refresh_token"]})
+    rejected = client.post("/api/v1/auth/refresh", json={"refresh_token": pair["refresh_token"]})
     assert rejected.status_code == 401
 
 

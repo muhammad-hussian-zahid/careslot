@@ -18,6 +18,10 @@ class LoginInput(BaseModel):
     password: str
 
 
+class RefreshInput(BaseModel):
+    refresh_token: str
+
+
 class UserOut(BaseModel):
     id: int
     email: EmailStr
@@ -73,6 +77,14 @@ class TimeOffInput(BaseModel):
     reason: str = ""
 
 
+class TimeOffOut(BaseModel):
+    id: int
+    starts_at: datetime
+    ends_at: datetime
+    reason: str
+    model_config = ConfigDict(from_attributes=True)
+
+
 class AppointmentCreate(BaseModel):
     doctor_id: int
     starts_at: datetime
@@ -91,6 +103,8 @@ class AppointmentOut(BaseModel):
     ends_at: datetime
     status: AppointmentStatus
     reason: str
+    doctor_name: str | None = None
+    patient_name: str | None = None
     model_config = ConfigDict(from_attributes=True)
 
 

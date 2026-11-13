@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
@@ -7,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.dependencies import get_current_user, require_roles
 from app.models import Appointment, User
-from app.schemas import AppointmentCreate, AppointmentOut
+from app.schemas import AppointmentCreate, AppointmentOut, AppointmentStatusUpdate
 from app.services.appointments import book_appointment, cancel_appointment, get_appointment
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
@@ -50,13 +51,17 @@ def reschedule(appointment_id: int, payload: AppointmentCreate, user: User = Dep
     if existing.patient_id != user.id:
         raise HTTPException(404, "Appointment not found")
     starts_at = existing.starts_at if existing.starts_at.tzinfo else existing.starts_at.replace(tzinfo=UTC)
-    if starts_at - datetime.now(UTC) < __import__("datetime").timedelta(hours=2):
+    if starts_at - datetime.now(UTC) < timedelta(hours=2):
         raise HTTPException(409, "Appointments cannot be rescheduled within 2 hours")
     if existing.status not in ("pending", "confirmed"):
         raise HTTPException(409, "Appointment is not active")
     existing.status = "cancelled"
-    db.commit()
-    return book_appointment(db, user, payload.doctor_id, payload.starts_at, payload.reason)
+    db.flush()
+    try:
+        return book_appointment(db, user, payload.doctor_id, payload.starts_at, payload.reason)
+    except Exception:
+        db.rollback()
+        raise
 
 
 @router.get("/admin/all", response_model=list[AppointmentOut])
@@ -67,3 +72,17 @@ def all_appointments(
     db: Session = Depends(get_db),
 ) -> list[Appointment]:
     return list(db.scalars(select(Appointment).order_by(Appointment.starts_at.desc()).offset((page - 1) * page_size).limit(page_size)).all())
+
+
+@router.patch("/admin/{appointment_id}", response_model=AppointmentOut)
+def update_admin_appointment(
+    appointment_id: int,
+    payload: AppointmentStatusUpdate,
+    user: User = Depends(require_roles("admin")),
+    db: Session = Depends(get_db),
+) -> Appointment:
+    appointment = get_appointment(db, appointment_id)
+    appointment.status = payload.status
+    db.commit()
+    db.refresh(appointment)
+    return appointment

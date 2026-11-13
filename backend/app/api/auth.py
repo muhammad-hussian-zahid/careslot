@@ -13,7 +13,7 @@ from app.core.database import get_db
 from app.core.security import decode_token, hash_password, hash_refresh_token, issue_token, verify_password
 from app.dependencies import get_current_user
 from app.models import RefreshToken, User
-from app.schemas import LoginInput, TokenPair, UserCreate, UserOut
+from app.schemas import LoginInput, RefreshInput, TokenPair, UserCreate, UserOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 limiter = Limiter(key_func=get_remote_address)
@@ -55,7 +55,8 @@ def login(request: Request, payload: LoginInput, db: Session = Depends(get_db)) 
 
 @router.post("/refresh", response_model=TokenPair)
 @limiter.limit("20/minute")
-def refresh(request: Request, refresh_token: str, db: Session = Depends(get_db)) -> TokenPair:
+def refresh(request: Request, payload: RefreshInput, db: Session = Depends(get_db)) -> TokenPair:
+    refresh_token = payload.refresh_token
     try:
         payload = decode_token(refresh_token, "refresh")
         user_id = int(payload["sub"])
