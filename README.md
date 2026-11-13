@@ -56,17 +56,17 @@ Create both env files as described above, then run from the repository root:
 docker compose up --build
 ```
 
-The API container applies Alembic migrations before starting. To seed the hosted database:
+The API container applies Alembic migrations before starting. For local development only, seed a disposable development database with:
 
 ```powershell
 docker compose exec backend python scripts/seed.py
 ```
 
-The Compose stack does not create a local database; configure the backend `.env` with the Supabase database URL.
+The Compose stack does not create a local database; configure the backend `.env` with the Supabase database URL. Never run the demo seed against a production database.
 
 ## Demo Accounts
 
-The seed command creates these accounts; each uses the local/demo password `CareSlotDemo!2026`:
+The development seed creates these demo accounts:
 
 | Role | Email |
 | --- | --- |
@@ -74,7 +74,7 @@ The seed command creates these accounts; each uses the local/demo password `Care
 | Doctor | `doctor@careslot.dev` |
 | Patient | `patient@careslot.dev` |
 
-Change or remove demo credentials before exposing a seeded environment publicly.
+All three accounts share a development-only password that is hard-coded in `backend/scripts/seed.py` and has appeared in repository history. Do not use these accounts or this password in a public deployment. Re-running the seed only creates missing accounts; it does not rotate existing passwords. The admin account in any already-seeded database must be disabled or have its password rotated before that database is exposed.
 
 ## Environment Variables
 
@@ -109,6 +109,14 @@ npm run build
 GitHub Actions runs backend tests and frontend lint, type-check, and build on pushes to `main` and pull requests.
 
 ## Deployment
+
+### Public Deployment Gate
+
+- Use a separate production Supabase project and a fresh database. Do not reuse the development database populated by the demo seed.
+- Do not run `scripts/seed.py` in production. Create the initial production admin through a controlled, one-time process with a unique strong password; the current seed script is for development only.
+- If a seeded database must be reused, first disable or rotate the existing demo admin account. The demo password is public in source history, so removing it from the current README or seed file alone does not make existing credentials safe.
+- Use unique production values for `JWT_SECRET` and `DATABASE_URL`; keep both only in the backend deployment environment. Set `FRONTEND_ORIGIN` to the exact public frontend origin and `BACKEND_API_URL` in the Vercel server environment.
+- Before opening the site to users, verify public registration, login, patient booking, and role-protected admin/doctor routes against the production configuration.
 
 - **Supabase:** create a PostgreSQL project and use its direct or pooled connection string with the appropriate psycopg URL and TLS setting. Ensure the database role can install/use `btree_gist` for the exclusion constraint.
 - **Render:** deploy `backend` as a Python web service using `backend/Dockerfile` or run `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Configure all backend variables and set `FRONTEND_ORIGIN` to the deployed Vercel origin. Run Alembic migrations as a release command when not using the provided Docker startup command.
