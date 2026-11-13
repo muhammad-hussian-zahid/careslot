@@ -70,9 +70,9 @@ The seed command creates these accounts; each uses the local/demo password `Care
 
 | Role | Email |
 | --- | --- |
-| Admin | `admin@careslot.test` |
-| Doctor | `doctor@careslot.test` |
-| Patient | `patient@careslot.test` |
+| Admin | `admin@careslot.dev` |
+| Doctor | `doctor@careslot.dev` |
+| Patient | `patient@careslot.dev` |
 
 Change or remove demo credentials before exposing a seeded environment publicly.
 

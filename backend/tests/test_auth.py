@@ -18,3 +18,11 @@ def test_invalid_login_is_rejected(client):
     response = client.post("/api/v1/auth/login", json={"email": "missing@example.com", "password": "wrong"})
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "http_error"
+
+
+def test_reserved_test_domain_is_rejected_but_dev_domain_is_valid(client):
+    reserved = client.post("/api/v1/auth/login", json={"email": "admin@careslot.test", "password": "anything"})
+    accepted_domain = client.post("/api/v1/auth/login", json={"email": "admin@careslot.dev", "password": "anything"})
+
+    assert reserved.status_code == 422
+    assert accepted_domain.status_code == 401
