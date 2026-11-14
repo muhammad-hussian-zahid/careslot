@@ -1,7 +1,7 @@
 from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -33,7 +33,13 @@ def doctors(
     if specialty_id is not None:
         query = query.where(DoctorProfile.specialty_id == specialty_id)
     if search:
-        query = query.where(func.lower(User.full_name).contains(search.lower()))
+        normalized_search = search.lower()
+        query = query.where(
+            or_(
+                func.lower(User.full_name).contains(normalized_search),
+                func.lower(Specialty.name).contains(normalized_search),
+            )
+        )
     rows = db.scalars(query.order_by(User.full_name).offset((page - 1) * page_size).limit(page_size)).all()
     return [doctor_output(profile) for profile in rows]
 

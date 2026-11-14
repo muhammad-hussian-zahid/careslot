@@ -49,10 +49,17 @@ class SpecialtyCreate(BaseModel):
     description: str = ""
 
 
+class AvailabilityRuleInput(BaseModel):
+    weekday: int = Field(ge=0, le=6)
+    start_time: time
+    end_time: time
+
+
 class DoctorCreate(UserCreate):
     specialty_id: int
     bio: str = ""
     consultation_minutes: int = Field(default=30, ge=10, le=180)
+    availability_rules: list[AvailabilityRuleInput] = Field(min_length=1)
 
 
 class DoctorOut(BaseModel):
@@ -63,12 +70,6 @@ class DoctorOut(BaseModel):
     specialty_name: str
     bio: str
     consultation_minutes: int
-
-
-class AvailabilityRuleInput(BaseModel):
-    weekday: int = Field(ge=0, le=6)
-    start_time: time
-    end_time: time
 
 
 class TimeOffInput(BaseModel):

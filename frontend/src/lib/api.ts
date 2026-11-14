@@ -36,8 +36,10 @@ export const api = {
   timeOff: () => request<TimeOff[]>("/doctor/time-off"),
   deleteTimeOff: (id: number) => request<void>(`/doctor/time-off/${id}`, json("DELETE")),
   createSpecialty: (name: string, description: string) => request<Specialty>("/admin/specialties", json("POST", { name, description })),
-  createDoctor: (values: { email: string; full_name: string; password: string; specialty_id: number; bio: string; consultation_minutes: number }) => request<{ id: number; user_id: number }>("/admin/doctors", json("POST", values)),
+  createDoctor: (values: { email: string; full_name: string; password: string; specialty_id: number; bio: string; consultation_minutes: number; availability_rules: { weekday: number; start_time: string; end_time: string }[] }) => request<{ id: number; user_id: number }>("/admin/doctors", json("POST", values)),
   deactivateDoctor: (id: number) => request<void>(`/admin/doctors/${id}`, json("DELETE")),
+  doctorAvailability: (id: number) => request<{ weekday: number; start_time: string; end_time: string }[]>(`/admin/doctors/${id}/availability`),
+  updateDoctorAvailability: (id: number, rules: { weekday: number; start_time: string; end_time: string }[]) => request<void>(`/admin/doctors/${id}/availability`, json("PUT", rules)),
   deleteSpecialty: (id: number) => request<void>(`/admin/specialties/${id}`, json("DELETE")),
   allAppointments: () => request<Appointment[]>("/appointments/admin/all"),
 };

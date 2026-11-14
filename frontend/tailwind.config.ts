@@ -17,6 +17,8 @@ const config: Config = {
         success: "hsl(var(--success))",
         warning: "hsl(var(--warning))",
         destructive: "hsl(var(--destructive))",
+        accent: "hsl(var(--accent))",
+        "accent-foreground": "hsl(var(--accent-foreground))",
       },
       fontFamily: { sans: ["var(--font-geist-sans)", "sans-serif"] },
       boxShadow: { soft: "0 12px 32px rgba(29, 68, 96, 0.08)" },

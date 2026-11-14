@@ -26,12 +26,19 @@ def get_availability(db: Session = Depends(get_db), user: User = Depends(require
 def create_doctor(payload: DoctorCreate, db: Session = Depends(get_db), _: User = Depends(require_roles("admin"))) -> dict[str, int]:
     if db.get(Specialty, payload.specialty_id) is None:
         raise HTTPException(404, "Specialty not found")
+    if any(rule.end_time <= rule.start_time for rule in payload.availability_rules):
+        raise HTTPException(422, "Availability end time must be after start time")
     user = User(email=payload.email.lower(), full_name=payload.full_name, password_hash=hash_password(payload.password), role="doctor")
     db.add(user)
     try:
         db.flush()
         profile = DoctorProfile(user_id=user.id, specialty_id=payload.specialty_id, bio=payload.bio, consultation_minutes=payload.consultation_minutes)
         db.add(profile)
+        db.flush()
+        db.add_all([
+            WeeklyAvailabilityRule(doctor_id=profile.id, **rule.model_dump())
+            for rule in payload.availability_rules
+        ])
         db.commit()
         db.refresh(profile)
     except IntegrityError as exc:
@@ -46,6 +53,39 @@ def deactivate_doctor(doctor_id: int, db: Session = Depends(get_db), _: User = D
     if profile is None:
         raise HTTPException(404, "Doctor not found")
     profile.user.is_active = False
+    db.commit()
+
+
+@router.get("/admin/doctors/{doctor_id}/availability", response_model=list[AvailabilityRuleInput])
+def get_doctor_availability(
+    doctor_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles("admin")),
+) -> list[WeeklyAvailabilityRule]:
+    profile = db.get(DoctorProfile, doctor_id)
+    if profile is None:
+        raise HTTPException(404, "Doctor not found")
+    return list(db.scalars(
+        select(WeeklyAvailabilityRule)
+        .where(WeeklyAvailabilityRule.doctor_id == profile.id)
+        .order_by(WeeklyAvailabilityRule.weekday, WeeklyAvailabilityRule.start_time)
+    ).all())
+
+
+@router.put("/admin/doctors/{doctor_id}/availability", status_code=204)
+def replace_doctor_availability(
+    doctor_id: int,
+    rules: list[AvailabilityRuleInput],
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles("admin")),
+) -> None:
+    profile = db.get(DoctorProfile, doctor_id)
+    if profile is None:
+        raise HTTPException(404, "Doctor not found")
+    if not rules or any(rule.end_time <= rule.start_time for rule in rules):
+        raise HTTPException(422, "Choose at least one valid weekly availability period")
+    db.query(WeeklyAvailabilityRule).filter(WeeklyAvailabilityRule.doctor_id == profile.id).delete()
+    db.add_all([WeeklyAvailabilityRule(doctor_id=profile.id, **rule.model_dump()) for rule in rules])
     db.commit()
 
 
